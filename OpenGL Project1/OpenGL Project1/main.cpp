@@ -37,7 +37,7 @@ GLuint lightColorLoc;
 
 // camera
 gps::Camera myCamera(
-    glm::vec3(0.0f, 0.0f, 3.0f),
+    glm::vec3(-148.124, -2.97568, 3.61291),
     glm::vec3(0.0f, 0.0f, -10.0f),
     glm::vec3(0.0f, 1.0f, 0.0f));
 
@@ -87,21 +87,22 @@ GLenum glCheckError_(const char* file, int line)
 }
 #define glCheckError() glCheckError_(__FILE__, __LINE__)
 
+/// Window variables and constants
 #define PROJECTION_ANGLE 45.0f
+#define RENDER_DISTANCE 1000.f
+int window_width = 1024, window_height = 648;
 void windowResizeCallback(GLFWwindow* window, int width, int height) {
     fprintf(stdout, "Window resized! New width: %d , and height: %d\n", width, height);
-    myWindow.setWindowDimensions({ width, height });
-    glViewport(
-        0, 
-        0, 
-        myWindow.getWindowDimensions().width, 
-        myWindow.getWindowDimensions().height);
-    
+    glfwGetFramebufferSize(myWindow.getWindow(), &window_width, &window_height);
+
     projection = glm::perspective(
         glm::radians(PROJECTION_ANGLE), 
-        (float)myWindow.getWindowDimensions().width / (float)myWindow.getWindowDimensions().height, 
+        (float)width / (float)height,
         0.1f, 
-        600.f);
+        RENDER_DISTANCE);
+    projectionLoc = glGetUniformLocation(myBasicShader.shaderProgram, "projection");
+    glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
+    glViewport(0, 0, window_width, window_height);
 }
 
 void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mode) {
@@ -122,10 +123,9 @@ void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int
 
 
 // Mouse variables
-double mouseSensitivity = 0.5f;
-double xd, yd, lx = 400, ly = 300, mouseAngleY = -90.f, deltaCamera;
-bool hasCursorChange = false;
-
+double mouseSensitivity = 0.3f;
+double xd, yd, lx = 400, ly = 300, yaw = -90.0f, pitch = 0.0f;
+bool hasCursorChange = true;
 void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
     if (hasCursorChange) {
         hasCursorChange = !hasCursorChange;
@@ -133,7 +133,7 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
     }
     else {
         xd = xpos - lx;
-        yd = ypos - ly;
+        yd = ly - ypos;
     }
 
     xd *= mouseSensitivity;
@@ -142,15 +142,16 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
     lx = xpos;
     ly = ypos;
 
-    mouseAngleY += xd;
-    deltaCamera += yd;
+    pitch += yd;
+    yaw += xd;
 
-    if (deltaCamera > 89.0f)
-        deltaCamera = 89.0f;
-    if (deltaCamera < -89.0f)
-        deltaCamera = -89.0f;
+    if (pitch > 89.0f)
+        pitch = 89.0f;
 
-    myCamera.rotate(deltaCamera, mouseAngleY);
+    if (pitch < -89.0f) 
+        pitch = -89.0f;
+
+    myCamera.rotate(pitch, yaw);
     view = myCamera.getViewMatrix();
     myBasicShader.useShaderProgram();
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
@@ -190,6 +191,26 @@ void processMovement() {
 
     if (pressedKeys[GLFW_KEY_D]) {
         myCamera.move(gps::MOVE_RIGHT, cameraSpeed);
+        //update view matrix
+        view = myCamera.getViewMatrix();
+        myBasicShader.useShaderProgram();
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+        // compute normal matrix for teapot
+        normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
+    }
+
+    if (pressedKeys[GLFW_KEY_UP]) {
+        myCamera.move(gps::MOVE_UP, cameraSpeed);
+        //update view matrix
+        view = myCamera.getViewMatrix();
+        myBasicShader.useShaderProgram();
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+        // compute normal matrix for teapot
+        normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
+    }
+
+    if (pressedKeys[GLFW_KEY_DOWN]) {
+        myCamera.move(gps::MOVE_DOWN, cameraSpeed);
         //update view matrix
         view = myCamera.getViewMatrix();
         myBasicShader.useShaderProgram();

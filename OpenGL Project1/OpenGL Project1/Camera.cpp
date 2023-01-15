@@ -6,15 +6,17 @@ namespace gps {
     Camera::Camera(glm::vec3 cameraPosition, glm::vec3 cameraTarget, glm::vec3 cameraUp) {
         this->cameraPosition = cameraPosition;
         this->cameraTarget = cameraTarget;
-        this->cameraFrontDirection = glm::normalize(cameraTarget - cameraPosition);
+        this->cameraUpDirection = cameraUp;
         this->cameraRightDirection = glm::normalize(glm::cross(this->cameraFrontDirection, glm::vec3(0.0f, 1.0f, 0.0f)));
         this->cameraUpDirection = glm::normalize(glm::cross(cameraRightDirection, cameraFrontDirection));
-        //TODO - Update the rest of camera parameters
-
+        this->cameraFrontDirection = glm::normalize(cameraTarget - cameraPosition);
     }
 
     //return the view matrix, using the glm::lookAt() function
     glm::mat4 Camera::getViewMatrix() {
+        cameraRightDirection = glm::normalize(glm::cross(this->cameraFrontDirection, glm::vec3(0.0f, 1.0f, 0.0f)));
+        cameraTarget = cameraPosition + cameraFrontDirection;
+        cameraUpDirection = glm::normalize(glm::cross(cameraRightDirection, cameraFrontDirection));
         return glm::lookAt(cameraPosition, cameraTarget, cameraUpDirection);
     }
 
@@ -36,6 +38,12 @@ namespace gps {
                 return;
             case MOVE_LEFT:
                 cameraPosition -= cameraRightDirection * speed;
+                return;
+            case MOVE_DOWN:
+                cameraPosition -= cameraUpDirection * speed;
+                return;
+            case MOVE_UP:
+                cameraPosition += cameraUpDirection * speed;
                 return;
         }
     }
