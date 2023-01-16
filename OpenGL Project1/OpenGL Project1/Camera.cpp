@@ -17,7 +17,15 @@ namespace gps {
         cameraRightDirection = glm::normalize(glm::cross(this->cameraFrontDirection, glm::vec3(0.0f, 1.0f, 0.0f)));
         cameraTarget = cameraPosition + cameraFrontDirection;
         cameraUpDirection = glm::normalize(glm::cross(cameraRightDirection, cameraFrontDirection));
+        //displayCameraParameters();
         return glm::lookAt(cameraPosition, cameraTarget, cameraUpDirection);
+    }
+
+    void Camera::displayCameraParameters() {
+        printf("\n");
+        printf("Camera position: %f %f %f\n", cameraPosition.x, cameraPosition.y, cameraPosition.z);
+        printf("Camera target: %f %f %f\n", cameraTarget.x, cameraTarget.y, cameraTarget.z);
+        printf("Camera up: %f %f %f\n", cameraUpDirection.x, cameraUpDirection.y, cameraUpDirection.z);
     }
 
     //update the camera internal parameters following a camera move event
@@ -29,21 +37,27 @@ namespace gps {
         switch (direction) {
             case MOVE_FORWARD:
                 cameraPosition += cameraFrontDirection * speed;
+                //displayCameraParameters();
                 return;
             case MOVE_BACKWARD:
                 cameraPosition -= cameraFrontDirection * speed;
+                //displayCameraParameters();
                 return;
             case MOVE_RIGHT:
                 cameraPosition += cameraRightDirection * speed;
+                //displayCameraParameters();
                 return;
             case MOVE_LEFT:
                 cameraPosition -= cameraRightDirection * speed;
+                //displayCameraParameters();
                 return;
             case MOVE_DOWN:
                 cameraPosition -= cameraUpDirection * speed;
+                //displayCameraParameters();
                 return;
             case MOVE_UP:
                 cameraPosition += cameraUpDirection * speed;
+                //displayCameraParameters();
                 return;
         }
     }
@@ -58,5 +72,6 @@ namespace gps {
         this->cameraFrontDirection = glm::normalize(cameraFrontDirection);
         this->cameraRightDirection = glm::normalize(glm::cross(this->cameraFrontDirection, glm::vec3(0.0f, 1.0f, 0.0f)));
         this->cameraTarget = cameraPosition + cameraFrontDirection;
+        //displayCameraParameters();
     }
 }

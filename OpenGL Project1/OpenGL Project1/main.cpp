@@ -1,6 +1,8 @@
+#define _CRT_SECURE_NO_WARNINGS
 #define GLEW_STATIC
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
+#include <stdio.h>
 
 #include "glm/glm.hpp"//core glm functionality
 #include "glm/gtc/matrix_transform.hpp" //glm extension for generating common transformation matrices
@@ -11,8 +13,8 @@
 #include "Shader.hpp"
 #include "Camera.hpp"
 #include "Model3D.hpp"
+#include "SkyBox.hpp"
 
-#include <iostream>
 
 // window
 gps::Window myWindow;
@@ -37,8 +39,8 @@ GLuint lightColorLoc;
 
 // camera
 gps::Camera myCamera(
-    glm::vec3(-148.124, -2.97568, 3.61291),
-    glm::vec3(0.0f, 0.0f, -10.0f),
+    glm::vec3(-88.0f, 22.0f,-2.50f),
+    glm::vec3(-89.0f, 22.0f, -2.29),
     glm::vec3(0.0f, 1.0f, 0.0f));
 
 GLfloat cameraSpeed = 0.1f;
@@ -52,6 +54,16 @@ GLfloat angle;
 
 // shaders
 gps::Shader myBasicShader;
+gps::Shader skyboxShader;
+
+// skybox
+std::vector<const GLchar*> faces;
+gps::SkyBox mySkyBox;
+
+bool mousePause = true;
+bool presentationPressed = true;
+
+FILE* file;
 
 GLenum glCheckError_(const char* file, int line)
 {
@@ -100,6 +112,8 @@ void windowResizeCallback(GLFWwindow* window, int width, int height) {
         (float)width / (float)height,
         0.1f, 
         RENDER_DISTANCE);
+
+    myBasicShader.useShaderProgram();
     projectionLoc = glGetUniformLocation(myBasicShader.shaderProgram, "projection");
     glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
     glViewport(0, 0, window_width, window_height);
@@ -121,12 +135,14 @@ void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int
 }
 
 
-
 // Mouse variables
 double mouseSensitivity = 0.3f;
-double xd, yd, lx = 400, ly = 300, yaw = -90.0f, pitch = 0.0f;
+double xd, yd, lx = 400, ly = 300, yaw = 180.0f, pitch = 0;
 bool hasCursorChange = true;
 void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
+    if (mousePause)
+        return;
+
     if (hasCursorChange) {
         hasCursorChange = !hasCursorChange;
         xd = yd = 0;
@@ -167,6 +183,7 @@ void processMovement() {
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
         // compute normal matrix for teapot
         normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
+        //fprintf(file, "%d %f %f\n", GLFW_KEY_W);
     }
 
     if (pressedKeys[GLFW_KEY_S]) {
@@ -177,6 +194,7 @@ void processMovement() {
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
         // compute normal matrix for teapot
         normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
+        //fprintf(file, "%d %f %f\n", GLFW_KEY_S);
     }
 
     if (pressedKeys[GLFW_KEY_A]) {
@@ -187,6 +205,7 @@ void processMovement() {
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
         // compute normal matrix for teapot
         normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
+        //fprintf(file, "%d\n", GLFW_KEY_A);
     }
 
     if (pressedKeys[GLFW_KEY_D]) {
@@ -197,6 +216,7 @@ void processMovement() {
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
         // compute normal matrix for teapot
         normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
+        //fprintf(file, "%d\n", GLFW_KEY_D);
     }
 
     if (pressedKeys[GLFW_KEY_UP]) {
@@ -220,30 +240,71 @@ void processMovement() {
     }
 
     if (pressedKeys[GLFW_KEY_Q]) {
-        angle -= 1.0f;
+        yaw -= cameraSpeed;
         // update model matrix for teapot
-        model = glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0, 1, 0));
-        // update normal matrix for teapot
+        myCamera.rotate(pitch, yaw);
+        view = myCamera.getViewMatrix();
+        myBasicShader.useShaderProgram();
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
         normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
+        //fprintf(file, "%d\n", GLFW_KEY_Q);
     }
 
     if (pressedKeys[GLFW_KEY_E]) {
-        angle += 1.0f;
+        yaw += cameraSpeed;
         // update model matrix for teapot
-        model = glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0, 1, 0));
-        // update normal matrix for teapot
+        myCamera.rotate(pitch, yaw);
+        view = myCamera.getViewMatrix();
+        myBasicShader.useShaderProgram();
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
         normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
+        //fprintf(file, "%d\n", GLFW_KEY_E);
+    }
+
+    if (pressedKeys[GLFW_KEY_T]) {
+        pitch += cameraSpeed;
+        // update model matrix for teapot
+        myCamera.rotate(pitch, yaw);
+        view = myCamera.getViewMatrix();
+        myBasicShader.useShaderProgram();
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+        normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
+        //fprintf(file, "%d\n", GLFW_KEY_T);
+    }
+
+    if (pressedKeys[GLFW_KEY_G]) {
+        pitch -= cameraSpeed;
+        // update model matrix for teapot
+        myCamera.rotate(pitch, yaw);
+        view = myCamera.getViewMatrix();
+        myBasicShader.useShaderProgram();
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+        normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
+        //fprintf(file, "%d\n", GLFW_KEY_G);
+    }
+
+    if (pressedKeys[GLFW_KEY_M])
+        mousePause = !mousePause;
+
+    if (pressedKeys[GLFW_KEY_P]) {
+        mousePause = true;
+        myCamera = gps::Camera(
+            glm::vec3(-88.0f, 22.0f, -2.50f),
+            glm::vec3(-89.0f, 22.0f, -2.29),
+            glm::vec3(0.0f, 1.0f, 0.0f)
+        );
     }
 }
 
 void initOpenGLWindow() {
-    myWindow.Create(1024, 768, "OpenGL Project Core");
+    myWindow.Create(3440, 1337, "OpenGL Project Core");
 }
 
 void setWindowCallbacks() {
     glfwSetWindowSizeCallback(myWindow.getWindow(), windowResizeCallback);
     glfwSetKeyCallback(myWindow.getWindow(), keyboardCallback);
     glfwSetCursorPosCallback(myWindow.getWindow(), mouseCallback);
+    windowResizeCallback(myWindow.getWindow(), 3440, 1337);
 }
 
 void initOpenGLState() {
@@ -265,6 +326,9 @@ void initShaders() {
     myBasicShader.loadShader(
         "shaders/basic.vert",
         "shaders/basic.frag");
+    skyboxShader.loadShader(
+        "shaders/skyboxShader.vert",
+        "shaders/skyboxShader.frag");
 }
 
 void initUniforms() {
@@ -275,6 +339,7 @@ void initUniforms() {
     modelLoc = glGetUniformLocation(myBasicShader.shaderProgram, "model");
 
     // get view matrix for current camera
+    myCamera.rotate(pitch, yaw);
     view = myCamera.getViewMatrix();
     viewLoc = glGetUniformLocation(myBasicShader.shaderProgram, "view");
     // send view matrix to shader
@@ -303,6 +368,12 @@ void initUniforms() {
     lightColorLoc = glGetUniformLocation(myBasicShader.shaderProgram, "lightColor");
     // send light color to shader
     glUniform3fv(lightColorLoc, 1, glm::value_ptr(lightColor));
+
+    mySkyBox.Load(faces);
+    skyboxShader.useShaderProgram();
+    glUniformMatrix4fv(glGetUniformLocation(skyboxShader.shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(skyboxShader.shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+    glUniform1f(glGetUniformLocation(skyboxShader.shaderProgram, "ambientStrength"), 1.0f);
 }
 
 void renderTeapot(gps::Shader shader) {
@@ -320,6 +391,7 @@ void renderTeapot(gps::Shader shader) {
 }
 
 void renderScene() {
+    myBasicShader.useShaderProgram();
     view = myCamera.getViewMatrix();
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
 
@@ -327,11 +399,46 @@ void renderScene() {
 
 
     renderTeapot(myBasicShader);
+
+    skyboxShader.useShaderProgram();
+    glUniform1f(glGetUniformLocation(skyboxShader.shaderProgram, "ambientStrength"), 1.0f);
+    mySkyBox.Draw(skyboxShader, view, projection);
 }
 
 void cleanup() {
     myWindow.Delete();
     //cleanup code for your own data
+}
+
+void initSkyBox() {
+    faces.push_back("models/skybox/majesty_rt.tga");
+    faces.push_back("models/skybox/majesty_lf.tga");
+    faces.push_back("models/skybox/majesty_up.tga");
+    faces.push_back("models/skybox/majesty_dn.tga");
+    faces.push_back("models/skybox/majesty_bk.tga");
+    faces.push_back("models/skybox/majesty_ft.tga");
+}
+
+int baseFrameCounter = 0;
+
+void clearButtonsState() {
+    pressedKeys[GLFW_KEY_W] = false; 
+    pressedKeys[GLFW_KEY_A] = false;
+    pressedKeys[GLFW_KEY_S] = false;
+    pressedKeys[GLFW_KEY_D] = false;
+
+    pressedKeys[GLFW_KEY_Q] = false;
+    pressedKeys[GLFW_KEY_E] = false;
+    pressedKeys[GLFW_KEY_G] = false;
+    pressedKeys[GLFW_KEY_T] = false;
+}
+
+void presentationAnimation() {
+    int button;
+    if (fscanf(file, "%d", &button)) {
+        clearButtonsState();
+        pressedKeys[button] = true;
+    }
 }
 
 int main(int argc, const char* argv[]) {
@@ -347,13 +454,16 @@ int main(int argc, const char* argv[]) {
     initOpenGLState();
     initModels();
     initShaders();
+    initSkyBox();
     initUniforms();
     setWindowCallbacks();
 
     glCheckError();
     // application loop
+    file = fopen("presentation.in", "r");
     while (!glfwWindowShouldClose(myWindow.getWindow())) {
         processMovement();
+        presentationAnimation();
         renderScene();
 
         glfwPollEvents();
@@ -362,6 +472,7 @@ int main(int argc, const char* argv[]) {
         glCheckError();
     }
 
+    fclose(file);
     cleanup();
 
     return EXIT_SUCCESS;
