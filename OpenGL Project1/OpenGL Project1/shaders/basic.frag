@@ -13,9 +13,15 @@ uniform mat3 normalMatrix;
 //lighting
 uniform vec3 lightDir;
 uniform vec3 lightColor;
+//lamp
+uniform vec3 lampLightColor;
+uniform vec3 lampLightPosition;
 // textures
 uniform sampler2D diffuseTexture;
 uniform sampler2D specularTexture;
+//purple lamp
+uniform vec3 purpleLampLightColor;
+uniform vec3 purpleLampLightPosition;
 
 //components
 vec3 ambient;
@@ -23,6 +29,23 @@ float ambientStrength = 0.2f;
 vec3 diffuse;
 vec3 specular;
 float specularStrength = 0.5f;
+
+//components
+vec3 lampAmbient;
+vec3 lampDiffuse;
+vec3 lampSpecular;
+float lampSpecularStrength = 0.5;
+
+//components
+vec3 purpleLampAmbient;
+vec3 purpleLampDiffuse;
+vec3 purpleLampSpecular;
+float purpleLampSpecularStrength = 0.2;
+
+//
+float cnst = 0.05;
+float linear = 0.1;
+float quad = 0.1;
 
 void computeDirLight()
 {
@@ -48,12 +71,49 @@ void computeDirLight()
     specular = specularStrength * specCoeff * lightColor;
 }
 
+void computePointLight() {
+    vec3 normalEye = normalize(normalMatrix * fNormal);	
+    vec3 lightDirN = normalize(lampLightPosition - fPosition.xyz);    
+    vec4 fPosEye = view * model * vec4(fPosition, 1.0f);
+
+    float distanceToLight = length(lampLightPosition - fPosition.xyz);
+    vec3 viewDir = normalize (-fPosEye.xyz);
+
+    float atenuation = cnst + linear * distanceToLight + quad * distanceToLight * distanceToLight;
+
+    lampAmbient = lampLightColor / atenuation;
+   
+    lampDiffuse = (max(dot(normalEye, lightDirN), 0.0f) * lampLightColor) / atenuation;
+    vec3 reflection = reflect(-lightDirN, normalEye);
+    float specCoefficient = pow(max(dot(viewDir, reflection), 0.0f), 0.32f);
+    lampSpecular = (specularStrength * specCoefficient * lampLightColor) / atenuation;
+}
+
+void computePurplePointLight() {
+    vec3 normalEye = normalize(normalMatrix * fNormal);	
+    vec3 lightDirN = normalize(purpleLampLightPosition - fPosition.xyz);    
+    vec4 fPosEye = view * model * vec4(fPosition, 1.0f);
+
+    float distanceToLight = length(purpleLampLightPosition - fPosition.xyz);
+    vec3 viewDir = normalize (-fPosEye.xyz);
+
+    float atenuation = cnst + linear * distanceToLight + quad * distanceToLight * distanceToLight;
+
+    purpleLampAmbient = purpleLampLightColor / atenuation;
+   
+    purpleLampDiffuse = (max(dot(normalEye, lightDirN), 0.0f) * purpleLampLightColor) / atenuation;
+    vec3 reflection = reflect(-lightDirN, normalEye);
+    float specCoefficient = pow(max(dot(viewDir, reflection), 0.0f), 0.32f);
+    purpleLampSpecular = (specularStrength * specCoefficient * purpleLampLightColor) / atenuation;
+}
+
 void main() 
 {
     computeDirLight();
-
+    computePointLight();
+	computePurplePointLight();
     //compute final vertex color
-    vec3 color = min((ambient + diffuse) * texture(diffuseTexture, fTexCoords).rgb + specular * texture(specularTexture, fTexCoords).rgb, 1.0f);
+    vec3 color = min((ambient + diffuse + lampAmbient + lampDiffuse + purpleLampAmbient + purpleLampDiffuse) * texture(diffuseTexture, fTexCoords).rgb + (lampSpecular + specular + purpleLampSpecular) * texture(specularTexture, fTexCoords).rgb, 1.0f);
 
     fColor = vec4(color, 1.0f);
 }
