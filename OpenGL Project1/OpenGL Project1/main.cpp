@@ -22,6 +22,10 @@ gps::Window myWindow;
 // matrices
 glm::mat4 model;
 glm::mat4 view;
+glm::vec3 lampLightPosition(-197, 9, 24);
+glm::vec3 lampLightColor(0.0f, 0.0f, 0.0f);
+glm::vec3 purpleLampLightPosition(-258.0f, 9.15, 4.0f);
+glm::vec3 purpleLampLightColor(0.0f, 0.0f, 0.0f);
 glm::mat4 projection;
 glm::mat3 normalMatrix;
 
@@ -36,6 +40,10 @@ GLuint projectionLoc;
 GLuint normalMatrixLoc;
 GLuint lightDirLoc;
 GLuint lightColorLoc;
+GLuint lapmLightPositionLoc;
+GLuint lampLightColorLoc;
+GLuint purpleLampLightPositionLoc;
+GLuint purpleLampLightColorLoc;
 
 // camera
 gps::Camera myCamera(
@@ -43,13 +51,14 @@ gps::Camera myCamera(
     glm::vec3(-89.0f, 22.0f, -2.29),
     glm::vec3(0.0f, 1.0f, 0.0f));
 
-GLfloat cameraSpeed = 0.1f;
+GLfloat cameraSpeed = 0.2f;
 GLfloat cameraRotationSpeed = 15.0f;
 
 GLboolean pressedKeys[1024];
 
 // models
-gps::Model3D teapot;
+gps::Model3D baseScene;
+gps::Model3D lamp;
 GLfloat angle;
 
 // shaders
@@ -272,7 +281,7 @@ void processMovement() {
         //fprintf(file, "%d\n", GLFW_KEY_T);
     }
 
-    if (pressedKeys[GLFW_KEY_G]) {
+    if (pressedKeys[GLFW_KEY_G]) { 
         pitch -= cameraSpeed;
         // update model matrix for teapot
         myCamera.rotate(pitch, yaw);
@@ -293,6 +302,44 @@ void processMovement() {
             glm::vec3(-89.0f, 22.0f, -2.29),
             glm::vec3(0.0f, 1.0f, 0.0f)
         );
+    }
+
+    if (pressedKeys[GLFW_KEY_L]) { // turn on the lamp light
+        myBasicShader.useShaderProgram();
+        lampLightColor = glm::vec3(1, 0, 0); 
+        glUniform3fv(lampLightColorLoc, 1, glm::value_ptr(lampLightColor));
+    }
+
+    if (pressedKeys[GLFW_KEY_O]) { // turn off the lamp light
+        myBasicShader.useShaderProgram();
+        lampLightColor = glm::vec3(0, 0, 0); // 0 0 0 for turn off
+        glUniform3fv(lampLightColorLoc, 1, glm::value_ptr(lampLightColor));
+    }
+
+    if (pressedKeys[GLFW_KEY_1]) { // turn on second lamp 
+        myBasicShader.useShaderProgram();
+        purpleLampLightColor = glm::vec3(0.4, 0.1, 0.8); 
+        glUniform3fv(purpleLampLightColorLoc, 1, glm::value_ptr(purpleLampLightColor));
+    }
+
+    if (pressedKeys[GLFW_KEY_2]) { // turn off second lamp 
+        myBasicShader.useShaderProgram();
+        purpleLampLightColor = glm::vec3(0, 0, 0);
+        glUniform3fv(purpleLampLightColorLoc, 1, glm::value_ptr(purpleLampLightColor));
+    }
+
+    //polygonal
+    if (pressedKeys[GLFW_KEY_Z]) {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+    }
+
+    if (pressedKeys[GLFW_KEY_X]) {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    }
+
+    //wireframe
+    if (pressedKeys[GLFW_KEY_Y]) {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     }
 }
 
@@ -319,7 +366,7 @@ void initOpenGLState() {
 }
 
 void initModels() {
-    teapot.LoadModel("models/base-scene/base_scene.obj");
+    baseScene.LoadModel("models/base-scene/base_scene.obj");
 }
 
 void initShaders() {
@@ -334,7 +381,7 @@ void initShaders() {
 void initUniforms() {
     myBasicShader.useShaderProgram();
 
-    // create model matrix for teapot
+    // create model matrix for baseScene
     model = glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
     modelLoc = glGetUniformLocation(myBasicShader.shaderProgram, "model");
 
@@ -345,7 +392,7 @@ void initUniforms() {
     // send view matrix to shader
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
 
-    // compute normal matrix for teapot
+    // compute normal matrix for baseScene
     normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
     normalMatrixLoc = glGetUniformLocation(myBasicShader.shaderProgram, "normalMatrix");
 
@@ -369,6 +416,20 @@ void initUniforms() {
     // send light color to shader
     glUniform3fv(lightColorLoc, 1, glm::value_ptr(lightColor));
 
+    //lamp 
+    lampLightColorLoc = glGetUniformLocation(myBasicShader.shaderProgram, "lampLightColor");
+    lapmLightPositionLoc = glGetUniformLocation(myBasicShader.shaderProgram, "lampLightPosition");
+
+    glUniform3fv(lampLightColorLoc, 1, glm::value_ptr(lampLightColor));
+    glUniform3fv(lapmLightPositionLoc, 1, glm::value_ptr(lampLightPosition));
+
+    //purpe light
+    purpleLampLightColorLoc = glGetUniformLocation(myBasicShader.shaderProgram, "purpleLampLightColor");
+    purpleLampLightPositionLoc = glGetUniformLocation(myBasicShader.shaderProgram, "purpleLampLightPosition");
+
+    glUniform3fv(purpleLampLightColorLoc, 1, glm::value_ptr(purpleLampLightColor));
+    glUniform3fv(purpleLampLightPositionLoc, 1, glm::value_ptr(purpleLampLightPosition));
+
     mySkyBox.Load(faces);
     skyboxShader.useShaderProgram();
     glUniformMatrix4fv(glGetUniformLocation(skyboxShader.shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
@@ -376,7 +437,7 @@ void initUniforms() {
     glUniform1f(glGetUniformLocation(skyboxShader.shaderProgram, "ambientStrength"), 1.0f);
 }
 
-void renderTeapot(gps::Shader shader) {
+void renderObj(gps::Shader shader) {
     // select active shader program
     shader.useShaderProgram();
 
@@ -386,8 +447,8 @@ void renderTeapot(gps::Shader shader) {
     //send teapot normal matrix data to shader
     glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
 
-    // draw teapot
-    teapot.Draw(shader);
+    // draw base scene
+    baseScene.Draw(shader);
 }
 
 void renderScene() {
@@ -398,7 +459,7 @@ void renderScene() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
-    renderTeapot(myBasicShader);
+    renderObj(myBasicShader);
 
     skyboxShader.useShaderProgram();
     glUniform1f(glGetUniformLocation(skyboxShader.shaderProgram, "ambientStrength"), 1.0f);
@@ -411,12 +472,12 @@ void cleanup() {
 }
 
 void initSkyBox() {
-    faces.push_back("models/skybox/majesty_rt.tga");
-    faces.push_back("models/skybox/majesty_lf.tga");
-    faces.push_back("models/skybox/majesty_up.tga");
-    faces.push_back("models/skybox/majesty_dn.tga");
-    faces.push_back("models/skybox/majesty_bk.tga");
-    faces.push_back("models/skybox/majesty_ft.tga");
+    faces.push_back("models/skybox/nightsky_rt.tga");
+    faces.push_back("models/skybox/nightsky_lf.tga");
+    faces.push_back("models/skybox/nightsky_up.tga");
+    faces.push_back("models/skybox/nightsky_dn.tga");
+    faces.push_back("models/skybox/nightsky_bk.tga");
+    faces.push_back("models/skybox/nightsky_ft.tga");
 }
 
 int baseFrameCounter = 0;
@@ -463,7 +524,7 @@ int main(int argc, const char* argv[]) {
     file = fopen("presentation.in", "r");
     while (!glfwWindowShouldClose(myWindow.getWindow())) {
         processMovement();
-        presentationAnimation();
+        //presentationAnimation();
         renderScene();
 
         glfwPollEvents();
