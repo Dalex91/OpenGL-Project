@@ -23,9 +23,9 @@ namespace gps {
 
     void Camera::displayCameraParameters() {
         //printf("\n");
-        //printf("Camera position: %f %f %f\n", cameraPosition.x, cameraPosition.y, cameraPosition.z);
-       // printf("Camera target: %f %f %f\n", cameraTarget.x, cameraTarget.y, cameraTarget.z);
-        //printf("Camera up: %f %f %f\n", cameraUpDirection.x, cameraUpDirection.y, cameraUpDirection.z);
+         //printf("Camera position: %f %f %f\n", cameraPosition.x, cameraPosition.y, cameraPosition.z);
+         //printf("Camera target: %f %f %f\n", cameraTarget.x, cameraTarget.y, cameraTarget.z);
+         //printf("Camera up: %f %f %f\n", cameraUpDirection.x, cameraUpDirection.y, cameraUpDirection.z);
     }
 
     //update the camera internal parameters following a camera move event

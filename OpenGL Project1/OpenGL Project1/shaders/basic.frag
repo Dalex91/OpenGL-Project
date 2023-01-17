@@ -22,7 +22,9 @@ uniform sampler2D specularTexture;
 //purple lamp
 uniform vec3 purpleLampLightColor;
 uniform vec3 purpleLampLightPosition;
-
+// transparency and fog
+uniform float fogDensity;
+uniform float opacity;
 //components
 vec3 ambient;
 float ambientStrength = 0.2f;
@@ -42,10 +44,12 @@ vec3 purpleLampDiffuse;
 vec3 purpleLampSpecular;
 float purpleLampSpecularStrength = 0.2;
 
-//
+//constants for computing light
 float cnst = 0.05;
 float linear = 0.1;
 float quad = 0.1;
+
+vec4 fogColor = vec4(0.5, 0.5, 0.5, 1);
 
 void computeDirLight()
 {
@@ -107,13 +111,21 @@ void computePurplePointLight() {
     purpleLampSpecular = (specularStrength * specCoefficient * purpleLampLightColor) / atenuation;
 }
 
-void main() 
-{
+float computeFog(){
+    vec4 fPosEye = view * model * vec4(fPosition, 1.0f);
+    float dist = length(fPosEye);
+    float fogFactor = exp(-pow(dist * fogDensity, 2));
+    return clamp(fogFactor, 0.0f, 1.0f);
+}
+
+void main() {
     computeDirLight();
     computePointLight();
 	computePurplePointLight();
+	float fogFactor = computeFog();
     //compute final vertex color
     vec3 color = min((ambient + diffuse + lampAmbient + lampDiffuse + purpleLampAmbient + purpleLampDiffuse) * texture(diffuseTexture, fTexCoords).rgb + (lampSpecular + specular + purpleLampSpecular) * texture(specularTexture, fTexCoords).rgb, 1.0f);
-
     fColor = vec4(color, 1.0f);
+	fColor = mix(fogColor, fColor, fogFactor);
+	fColor.w = opacity;
 }
