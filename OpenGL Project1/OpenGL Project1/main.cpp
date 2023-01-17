@@ -27,8 +27,9 @@ glm::vec3 lampLightColor(0.0f, 0.0f, 0.0f);
 glm::vec3 purpleLampLightPosition(-258.0f, 9.15, 4.0f);
 glm::vec3 purpleLampLightColor(0.0f, 0.0f, 0.0f);
 glm::mat4 projection;
-glm::mat3 normalMatrix;
-
+glm::mat3 normalMatrix; 
+glm::vec3 ghostPosition(-196.0f, 8.0f, 11.0f);
+glm::vec3 ghostCenterAnimation(-213.0f, 11.0f, -2.0f);
 // light parameters
 glm::vec3 lightDir;
 glm::vec3 lightColor;
@@ -44,6 +45,13 @@ GLuint lapmLightPositionLoc;
 GLuint lampLightColorLoc;
 GLuint purpleLampLightPositionLoc;
 GLuint purpleLampLightColorLoc;
+GLuint opacityLoc;
+GLuint fogDensityLoc;
+
+float fogDensity = 0.0f;
+float opacity = 1.0f;
+
+bool moveGhost = false;
 
 // camera
 gps::Camera myCamera(
@@ -51,15 +59,17 @@ gps::Camera myCamera(
     glm::vec3(-89.0f, 22.0f, -2.29),
     glm::vec3(0.0f, 1.0f, 0.0f));
 
-GLfloat cameraSpeed = 0.2f;
+GLfloat cameraSpeed = 0.5;
 GLfloat cameraRotationSpeed = 15.0f;
 
 GLboolean pressedKeys[1024];
 
 // models
 gps::Model3D baseScene;
-gps::Model3D lamp;
+gps::Model3D ghost;
 GLfloat angle;
+
+float ghoastAngle = 0.0f;
 
 // shaders
 gps::Shader myBasicShader;
@@ -69,7 +79,7 @@ gps::Shader skyboxShader;
 std::vector<const GLchar*> faces;
 gps::SkyBox mySkyBox;
 
-bool mousePause = true;
+bool mousePause = false;
 bool presentationPressed = true;
 
 FILE* file;
@@ -147,7 +157,7 @@ void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int
 // Mouse variables
 double mouseSensitivity = 0.3f;
 double xd, yd, lx = 400, ly = 300, yaw = 180.0f, pitch = 0;
-bool hasCursorChange = true;
+bool hasCursorChange = true, isPresentationMode = true;
 void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
     if (mousePause)
         return;
@@ -192,9 +202,8 @@ void processMovement() {
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
         // compute normal matrix for teapot
         normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
-        //fprintf(file, "%d %f %f\n", GLFW_KEY_W);
+        //fprintf(file, "%d\n", GLFW_KEY_W);
     }
-
     if (pressedKeys[GLFW_KEY_S]) {
         myCamera.move(gps::MOVE_BACKWARD, cameraSpeed);
         //update view matrix
@@ -203,9 +212,8 @@ void processMovement() {
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
         // compute normal matrix for teapot
         normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
-        //fprintf(file, "%d %f %f\n", GLFW_KEY_S);
+        //fprintf(file, "%d\n", GLFW_KEY_S);
     }
-
     if (pressedKeys[GLFW_KEY_A]) {
         myCamera.move(gps::MOVE_LEFT, cameraSpeed);
         //update view matrix
@@ -216,7 +224,6 @@ void processMovement() {
         normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
         //fprintf(file, "%d\n", GLFW_KEY_A);
     }
-
     if (pressedKeys[GLFW_KEY_D]) {
         myCamera.move(gps::MOVE_RIGHT, cameraSpeed);
         //update view matrix
@@ -227,7 +234,6 @@ void processMovement() {
         normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
         //fprintf(file, "%d\n", GLFW_KEY_D);
     }
-
     if (pressedKeys[GLFW_KEY_UP]) {
         myCamera.move(gps::MOVE_UP, cameraSpeed);
         //update view matrix
@@ -237,17 +243,15 @@ void processMovement() {
         // compute normal matrix for teapot
         normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
     }
-
     if (pressedKeys[GLFW_KEY_DOWN]) {
         myCamera.move(gps::MOVE_DOWN, cameraSpeed);
         //update view matrix
         view = myCamera.getViewMatrix();
         myBasicShader.useShaderProgram();
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-        // compute normal matrix for teapot
+        // compute normal matrix for baseScene
         normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
     }
-
     if (pressedKeys[GLFW_KEY_Q]) {
         yaw -= cameraSpeed;
         // update model matrix for teapot
@@ -258,7 +262,6 @@ void processMovement() {
         normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
         //fprintf(file, "%d\n", GLFW_KEY_Q);
     }
-
     if (pressedKeys[GLFW_KEY_E]) {
         yaw += cameraSpeed;
         // update model matrix for teapot
@@ -269,7 +272,6 @@ void processMovement() {
         normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
         //fprintf(file, "%d\n", GLFW_KEY_E);
     }
-
     if (pressedKeys[GLFW_KEY_T]) {
         pitch += cameraSpeed;
         // update model matrix for teapot
@@ -280,7 +282,6 @@ void processMovement() {
         normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
         //fprintf(file, "%d\n", GLFW_KEY_T);
     }
-
     if (pressedKeys[GLFW_KEY_G]) { 
         pitch -= cameraSpeed;
         // update model matrix for teapot
@@ -292,9 +293,6 @@ void processMovement() {
         //fprintf(file, "%d\n", GLFW_KEY_G);
     }
 
-    if (pressedKeys[GLFW_KEY_M])
-        mousePause = !mousePause;
-
     if (pressedKeys[GLFW_KEY_P]) {
         mousePause = true;
         myCamera = gps::Camera(
@@ -302,44 +300,60 @@ void processMovement() {
             glm::vec3(-89.0f, 22.0f, -2.29),
             glm::vec3(0.0f, 1.0f, 0.0f)
         );
+        isPresentationMode = false;
+        mousePause = false;
+        //fprintf(file, "%d\n", GLFW_KEY_P);
     }
-
     if (pressedKeys[GLFW_KEY_L]) { // turn on the lamp light
         myBasicShader.useShaderProgram();
         lampLightColor = glm::vec3(1, 0, 0); 
         glUniform3fv(lampLightColorLoc, 1, glm::value_ptr(lampLightColor));
+        //fprintf(file, "%d\n", GLFW_KEY_L);
     }
-
     if (pressedKeys[GLFW_KEY_O]) { // turn off the lamp light
         myBasicShader.useShaderProgram();
         lampLightColor = glm::vec3(0, 0, 0); // 0 0 0 for turn off
         glUniform3fv(lampLightColorLoc, 1, glm::value_ptr(lampLightColor));
+        //fprintf(file, "%d\n", GLFW_KEY_O);
     }
-
     if (pressedKeys[GLFW_KEY_1]) { // turn on second lamp 
         myBasicShader.useShaderProgram();
         purpleLampLightColor = glm::vec3(0.4, 0.1, 0.8); 
         glUniform3fv(purpleLampLightColorLoc, 1, glm::value_ptr(purpleLampLightColor));
+        //fprintf(file, "%d\n", GLFW_KEY_1);
     }
-
     if (pressedKeys[GLFW_KEY_2]) { // turn off second lamp 
         myBasicShader.useShaderProgram();
         purpleLampLightColor = glm::vec3(0, 0, 0);
         glUniform3fv(purpleLampLightColorLoc, 1, glm::value_ptr(purpleLampLightColor));
+        //fprintf(file, "%d\n", GLFW_KEY_2);
     }
-
     //polygonal
     if (pressedKeys[GLFW_KEY_Z]) {
         glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+        //fprintf(file, "%d\n", GLFW_KEY_Z);
     }
 
     if (pressedKeys[GLFW_KEY_X]) {
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        //fprintf(file, "%d\n", GLFW_KEY_X);
     }
-
     //wireframe
     if (pressedKeys[GLFW_KEY_Y]) {
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        //fprintf(file, "%d\n", GLFW_KEY_Y);
+    }
+    if (pressedKeys[GLFW_KEY_F]) { /// fog ON
+        fogDensity = 0.0069;
+        myBasicShader.useShaderProgram();
+        glUniform1f(fogDensityLoc, fogDensity);
+        //fprintf(file, "%d\n", GLFW_KEY_F);
+    }
+    if (pressedKeys[GLFW_KEY_H]) { // fog OFF
+        fogDensity = 0.0;
+        myBasicShader.useShaderProgram();
+        glUniform1f(fogDensityLoc, fogDensity);
+        //fprintf(file, "%d\n", GLFW_KEY_H);
     }
 }
 
@@ -360,13 +374,15 @@ void initOpenGLState() {
     glEnable(GL_FRAMEBUFFER_SRGB);
     glEnable(GL_DEPTH_TEST); // enable depth-testing
     glDepthFunc(GL_LESS); // depth-testing interprets a smaller value as "closer"
-    glEnable(GL_CULL_FACE); // cull face
     glCullFace(GL_BACK); // cull back face
     glFrontFace(GL_CCW); // GL_CCW for counter clock-wise
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 void initModels() {
     baseScene.LoadModel("models/base-scene/base_scene.obj");
+    ghost.LoadModel("models/ghost/ghost.obj");
 }
 
 void initShaders() {
@@ -423,12 +439,19 @@ void initUniforms() {
     glUniform3fv(lampLightColorLoc, 1, glm::value_ptr(lampLightColor));
     glUniform3fv(lapmLightPositionLoc, 1, glm::value_ptr(lampLightPosition));
 
-    //purpe light
+    //purpel light
     purpleLampLightColorLoc = glGetUniformLocation(myBasicShader.shaderProgram, "purpleLampLightColor");
     purpleLampLightPositionLoc = glGetUniformLocation(myBasicShader.shaderProgram, "purpleLampLightPosition");
 
     glUniform3fv(purpleLampLightColorLoc, 1, glm::value_ptr(purpleLampLightColor));
     glUniform3fv(purpleLampLightPositionLoc, 1, glm::value_ptr(purpleLampLightPosition));
+
+    // fog location uniform
+    fogDensityLoc = glGetUniformLocation(myBasicShader.shaderProgram, "fogDensity");
+    glUniform1f(fogDensityLoc, fogDensity);
+
+    opacityLoc = glGetUniformLocation(myBasicShader.shaderProgram, "opacity");
+    glUniform1f(opacityLoc, opacity);
 
     mySkyBox.Load(faces);
     skyboxShader.useShaderProgram();
@@ -437,17 +460,38 @@ void initUniforms() {
     glUniform1f(glGetUniformLocation(skyboxShader.shaderProgram, "ambientStrength"), 1.0f);
 }
 
-void renderObj(gps::Shader shader) {
-    // select active shader program
+void renderGhost(gps::Shader shader) {
+    ghoastAngle += 0.01f;
+    glm::mat4 ghostModel(1);
+    ghostModel = glm::translate(ghostModel, ghostCenterAnimation);
+    ghostModel = glm::rotate(ghostModel, ghoastAngle, glm::vec3(0, 1, 0));
+    ghostModel = glm::translate(ghostModel, -ghostCenterAnimation);
+
+    ghostModel = glm::translate(ghostModel, ghostPosition);
+    ghostModel = glm::scale(ghostModel, glm::vec3(0.3, 0.3, 0.3));
+    ghostModel = glm::rotate(ghostModel, glm::radians(170.0f), glm::vec3(0, 1, 0));
+    ghostModel = glm::rotate(ghostModel, glm::radians(20.0f), glm::vec3(1, 0, 0));
+    
+    model = glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f)) * ghostModel;
+    normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
+    opacity = 0.2f;
     shader.useShaderProgram();
+    glUniform1f(opacityLoc, opacity);
 
-    //send teapot model matrix data to shader
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-
-    //send teapot normal matrix data to shader
     glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
+    ghost.Draw(shader);
+    opacity = 1.0;
+    shader.useShaderProgram();
+    glUniform1f(opacityLoc, opacity);
+}
 
-    // draw base scene
+void renderBaseScene(gps::Shader shader) {
+    shader.useShaderProgram();
+    model = glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
+    normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
     baseScene.Draw(shader);
 }
 
@@ -455,11 +499,9 @@ void renderScene() {
     myBasicShader.useShaderProgram();
     view = myCamera.getViewMatrix();
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-
-    renderObj(myBasicShader);
+    renderBaseScene(myBasicShader);
+    renderGhost(myBasicShader);
 
     skyboxShader.useShaderProgram();
     glUniform1f(glGetUniformLocation(skyboxShader.shaderProgram, "ambientStrength"), 1.0f);
@@ -496,9 +538,11 @@ void clearButtonsState() {
 
 void presentationAnimation() {
     int button;
-    if (fscanf(file, "%d", &button)) {
-        clearButtonsState();
-        pressedKeys[button] = true;
+    if (isPresentationMode) {
+        if (fscanf(file, "%d", &button)) {
+            clearButtonsState();
+            pressedKeys[button] = true;
+        }
     }
 }
 
@@ -522,9 +566,10 @@ int main(int argc, const char* argv[]) {
     glCheckError();
     // application loop
     file = fopen("presentation.in", "r");
+    mousePause = true;
     while (!glfwWindowShouldClose(myWindow.getWindow())) {
         processMovement();
-        //presentationAnimation();
+        presentationAnimation();
         renderScene();
 
         glfwPollEvents();
